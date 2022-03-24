@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package todo;
+
+message Todo {
+    string content = 1;
+    string startTime = 2;
+    optional string overdueTime = 3;
+    bool isCompleted = 4;
+}
+
+message TodoUpdate {
+    repeated Todo todos = 1;
+}
+
+message UpdateResult {
+    uint32 updateAmount = 1;
+    uint32 createAmount = 2;
+    uint32 deleteAmount = 3;
+}
+
+message QueryResult {
+    repeated Todo todos = 1;
+}
+
+service TodoService {
+    rpc QueryTodo(Todo) returns (QueryResult);
+    rpc UpdateTodo(TodoUpdate) returns (UpdateResult);
+}
+
