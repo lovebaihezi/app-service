@@ -5,6 +5,7 @@ mod todo_query;
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Todo {
+    id: String,
     content: String,
     start_time: String,
     overdue_time: Option<String>,

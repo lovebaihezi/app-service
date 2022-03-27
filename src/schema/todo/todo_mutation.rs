@@ -1,42 +1,46 @@
-use super::Todo;
 use async_graphql::*;
-use rpc::{todo_rpc::todo_service_client, RPC_ADDRESS};
+use rpc::{
+    todo_rpc::{todo_service_client::TodoServiceClient, Todo, TodoUpdate},
+    todo_rpc::{DeleteQuery, TodoAdd},
+    RPC_CONNECT,
+};
 use serde::{Deserialize, Serialize};
+use tonic::Request;
+use tracing::instrument;
 
-#[derive(Serialize, Deserialize)]
-pub struct UpdateResult {
-    update_amount: u32,
-    create_amount: u32,
-    delete_amount: u32,
-}
-
-scalar!(UpdateResult);
-
+#[derive(Debug)]
 pub struct MutationTodo;
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+struct Empty;
+scalar!(Empty);
 
 #[Object]
 impl MutationTodo {
-    async fn update_todos(&self, todos: Vec<Todo>) -> Result<UpdateResult> {
-        let mut client =
-            todo_service_client::TodoServiceClient::connect(RPC_ADDRESS).await?;
-        let res = client
-            .update_todo(tonic::Request::new(rpc::todo_rpc::TodoUpdate {
-                todos: todos
-                    .into_iter()
-                    .map(|todo| rpc::todo_rpc::Todo {
-                        content: todo.content,
-                        start_time: todo.start_time,
-                        overdue_time: todo.overdue_time,
-                        is_completed: todo.is_completed,
-                    })
-                    .collect(),
-            }))
-            .await?;
-        let msg = res.into_inner();
-        Ok(UpdateResult {
-            update_amount: msg.update_amount,
-            create_amount: msg.create_amount,
-            delete_amount: msg.delete_amount,
-        })
+    #[instrument(skip(changes))]
+    async fn update_todos(&self, changes: Vec<Todo>) -> Result<Empty> {
+        tracing::trace!("connect to RPC: {}", RPC_CONNECT);
+        let mut client = TodoServiceClient::connect(RPC_CONNECT).await?;
+        let req = Request::new(TodoUpdate { todos: changes });
+        let _ = client.update_todo(req).await?;
+        Ok(Default::default())
+    }
+    #[instrument(skip(new_todo))]
+    async fn add_todos(&self, new_todo: Vec<Todo>) -> Result<Empty> {
+        tracing::trace!("connect to RPC: {}", RPC_CONNECT);
+        let mut client = TodoServiceClient::connect(RPC_CONNECT).await?;
+        tracing::trace!("call rpc todo add");
+        let req = Request::new(TodoAdd { todos: new_todo });
+        let _ = client.add_todo(req).await?;
+        Ok(Default::default())
+    }
+    #[instrument]
+    async fn delete_todos(&self, delete: Vec<String>) -> Result<Empty> {
+        tracing::trace!("connect to RPC: {}", RPC_CONNECT);
+        let mut client = TodoServiceClient::connect(RPC_CONNECT).await?;
+        tracing::trace!("call rpc todo add");
+        let req = Request::new(DeleteQuery { ids: delete });
+        let _ = client.delete_todo(req).await?;
+        Ok(Default::default())
     }
 }

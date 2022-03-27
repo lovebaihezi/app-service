@@ -3,10 +3,11 @@ syntax = "proto3";
 package todo;
 
 message Todo {
-    string content = 1;
-    string startTime = 2;
-    optional string overdueTime = 3;
-    bool isCompleted = 4;
+    string id = 1;
+    string content = 2;
+    string startTime = 3;
+    optional string overdueTime = 4;
+    bool isCompleted = 5;
 }
 
 message TodoUpdate {
@@ -14,17 +15,36 @@ message TodoUpdate {
 }
 
 message UpdateResult {
-    uint32 updateAmount = 1;
-    uint32 createAmount = 2;
-    uint32 deleteAmount = 3;
+}
+
+message TodoQuery {
+
 }
 
 message QueryResult {
     repeated Todo todos = 1;
 }
 
+message TodoAdd {
+    repeated Todo todos = 1;
+}
+
+message AddResult {
+
+}
+
+message DeleteQuery {
+    repeated string ids = 1;
+}
+
+message DeleteResult {
+
+}
+
 service TodoService {
-    rpc QueryTodo(Todo) returns (QueryResult);
+    rpc QueryTodo(TodoQuery) returns (QueryResult);
     rpc UpdateTodo(TodoUpdate) returns (UpdateResult);
+    rpc AddTodo(TodoAdd) returns (AddResult);
+    rpc DeleteTodo(DeleteQuery) returns (DeleteResult);
 }
 
