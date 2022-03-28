@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::str::FromStr;
 
+use crate::todo_rpc::todo_service_server;
 use crate::todo_rpc::Todo;
 use crate::PgPool;
 use crate::{todo_rpc, FORMAT};
@@ -9,6 +10,34 @@ use chrono::{DateTime, Utc};
 use sqlx::types::Uuid;
 use tonic::{Code, Request, Response, Status};
 use tracing::instrument;
+
+type TimeStamp = DateTime<Utc>;
+
+type ParseResult = Result<(Uuid, TimeStamp, Option<TimeStamp>), Status>;
+
+fn take<T, R: Error>(t: Result<T, R>) -> Result<T, Status> {
+    t.map_or_else(|e| Err(Status::unknown(e.to_string())), Ok)
+}
+
+#[instrument]
+fn parse(todo: &Todo) -> ParseResult {
+    tracing::debug!("parser id");
+    let id = take(Uuid::from_str(todo.id.as_str()))?;
+    tracing::debug!("parse start_time");
+    let start_time = take(NaiveDateTime::parse_from_str(&todo.start_time, FORMAT))?;
+    let start_time = TimeStamp::from_utc(start_time, Utc);
+    tracing::debug!("parse overdue_time");
+    let overdue_time = match &todo.overdue_time {
+        Some(v) => {
+            let overdue_time = take(NaiveDateTime::parse_from_str(v, FORMAT))?;
+            let overdue_time = DateTime::<Utc>::from_utc(overdue_time, Utc);
+            Some(overdue_time)
+        }
+        None => None,
+    };
+    tracing::debug!("parse finished");
+    Ok((id, start_time, overdue_time))
+}
 
 pub struct TodoService {
     pool: PgPool,
@@ -19,6 +48,7 @@ impl TodoService {
         Self { pool }
     }
 }
+
 #[derive(sqlx::FromRow)]
 struct TodoData {
     id: sqlx::types::Uuid,
@@ -26,6 +56,7 @@ struct TodoData {
     start_time: DateTime<Utc>,
     overdue_time: Option<DateTime<Utc>>,
     is_completed: bool,
+    index: i32,
 }
 
 impl TodoData {
@@ -36,12 +67,13 @@ impl TodoData {
             start_time: self.start_time.to_string(),
             overdue_time: self.overdue_time.map(|v| v.to_string()),
             is_completed: self.is_completed,
+            index: self.index,
         }
     }
 }
 
 #[tonic::async_trait]
-impl todo_rpc::todo_service_server::TodoService for TodoService {
+impl todo_service_server::TodoService for TodoService {
     #[instrument(skip_all())]
     async fn query_todo(
         &self,
@@ -50,7 +82,7 @@ impl todo_rpc::todo_service_server::TodoService for TodoService {
         tracing::debug!("query all todos witch sqlx");
         let todos = sqlx::query_as!(
             TodoData,
-            "SELECT id, content, start_time, overdue_time, is_completed FROM todo;"
+            "SELECT id, content, start_time, overdue_time, is_completed, index FROM todo;"
         )
         .map(|v| v.todo())
         .fetch_all(&self.pool)
@@ -84,6 +116,7 @@ impl todo_rpc::todo_service_server::TodoService for TodoService {
         }
         Ok(Response::new(todo_rpc::UpdateResult {}))
     }
+
     #[instrument(skip_all())]
     async fn add_todo(
         &self,
@@ -96,16 +129,18 @@ impl todo_rpc::todo_service_server::TodoService for TodoService {
             let (id, start_time, overdue_time) = parse(&todo)?;
             tracing::trace!("insert into todo");
             take(sqlx::query!(
-                "INSERT INTO todo (ID, content, start_time, overdue_time, is_completed) VALUES ($1, $2, $3, $4, $5)",
+                "INSERT INTO todo (ID, content, start_time, overdue_time, is_completed, index) VALUES ($1, $2, $3, $4, $5, $6)",
                 id,
                 todo.content,
                 start_time,
                 overdue_time,
-                todo.is_completed
+                todo.is_completed,
+                todo.index
                 ).fetch_all(&self.pool).await)?;
         }
         Ok(Response::new(todo_rpc::AddResult {}))
     }
+
     #[instrument(skip_all())]
     async fn delete_todo(
         &self,
@@ -123,32 +158,6 @@ impl todo_rpc::todo_service_server::TodoService for TodoService {
         }
         Ok(Response::new(todo_rpc::DeleteResult {}))
     }
-}
-
-fn take<T, R: Error>(t: Result<T, R>) -> Result<T, Status> {
-    t.map_or_else(|e| Err(Status::unknown(e.to_string())), Ok)
-}
-
-type ParseResult = Result<(Uuid, DateTime<Utc>, Option<DateTime<Utc>>), Status>;
-
-#[instrument]
-fn parse(todo: &Todo) -> ParseResult {
-    tracing::debug!("parser id");
-    let id = take(Uuid::from_str(todo.id.as_str()))?;
-    tracing::debug!("parse start_time");
-    let start_time = take(NaiveDateTime::parse_from_str(&todo.start_time, FORMAT))?;
-    let start_time = DateTime::<Utc>::from_utc(start_time, Utc);
-    tracing::debug!("parse overdue_time");
-    let overdue_time = match &todo.overdue_time {
-        Some(v) => {
-            let overdue_time = take(NaiveDateTime::parse_from_str(v, FORMAT))?;
-            let overdue_time = DateTime::<Utc>::from_utc(overdue_time, Utc);
-            Some(overdue_time)
-        }
-        None => None,
-    };
-    tracing::debug!("parse finished");
-    Ok((id, start_time, overdue_time))
 }
 
 #[cfg(test)]
