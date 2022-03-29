@@ -10,6 +10,11 @@ async fn main() -> std::io::Result<()> {
         .init();
 
     #[cfg(not(debug_assertions))]
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::WARN)
+        .init();
+
+    #[cfg(not(debug_assertions))]
     let (_, guard) =
         tracing_appender::non_blocking(tracing_appender::rolling::never("log", "todo.rpc.log"));
 

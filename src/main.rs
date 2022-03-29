@@ -36,6 +36,11 @@ async fn main() -> std::io::Result<()> {
     #[cfg(not(debug_assertions))]
     let (_, guard) =
         tracing_appender::non_blocking(tracing_appender::rolling::never("log", "todo.log"));
+    #[cfg(not(debug_assertions))]
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::WARN)
+        .init();
+
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "8888".into())
         .parse::<u16>()
