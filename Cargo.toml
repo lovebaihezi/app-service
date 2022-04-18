@@ -1,5 +1,5 @@
 [package]
-name = "skp-service"
+name = "app-service"
 version = "0.1.0"
 edition = "2021"
 
@@ -15,9 +15,7 @@ path = "rpc/src/main.rs"
 
 [workspace]
 
-members = [
-    "rpc",
-]
+members = ["rpc"]
 
 [dependencies]
 actix = "0.13"
@@ -35,11 +33,17 @@ tracing-futures = "0.2"
 tracing-appender = "0.2"
 tracing-attributes = "0.1"
 rustls = "0.20"
-rustls-pemfile = "0.3"
+rustls-pemfile = "1"
 async-graphql = "3"
 async-graphql-actix-web = "3"
 rpc = { path = "rpc" }
-tonic = { version = "0.6", features = ["compression", "tls"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "json", "macros", "chrono", "uuid", "postgres"] }
+tonic = { version = "0.7", features = ["compression", "tls"] }
+sqlx = { version = "0.5", features = [
+  "runtime-tokio-rustls",
+  "json",
+  "macros",
+  "chrono",
+  "uuid",
+  "postgres",
+] }
 chrono = { version = "0.4", features = ["serde"] }
-

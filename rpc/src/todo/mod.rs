@@ -162,7 +162,7 @@ impl todo_service_server::TodoService for TodoService {
 
 #[cfg(test)]
 mod todo_tests {
-    use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
+    use chrono::NaiveDateTime;
 
     use crate::FORMAT;
 

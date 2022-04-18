@@ -1,8 +1,7 @@
-use actix_cors::Cors;
-use actix_web::{dev::Service, http, main, App, HttpServer};
+use actix_web::{dev::Service, main, App, HttpServer};
 use rustls::{Certificate, PrivateKey, ServerConfig};
 use rustls_pemfile::{certs, pkcs8_private_keys};
-use skp_service::api;
+use app_service::api;
 use std::{fs::File, io::BufReader};
 use tracing::instrument;
 
@@ -52,8 +51,6 @@ async fn main() -> std::io::Result<()> {
     );
     let server = HttpServer::new(|| {
         let app = App::new();
-        // #[cfg(debug_assertions)]
-        // let app = app.wrap(cors());
         #[cfg(debug_assertions)]
         let app = app.wrap_fn(|req, service| {
             let path = req.path();
